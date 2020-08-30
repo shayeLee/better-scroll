@@ -9,7 +9,8 @@ import {
   TouchEvent,
   getNow,
   Probe,
-  EventEmitter
+  EventEmitter,
+  Direction,
 } from '@better-scroll/shared-utils'
 
 export default class ScrollerActions {
@@ -38,7 +39,7 @@ export default class ScrollerActions {
       'scroll',
       'beforeEnd',
       'end',
-      'scrollEnd'
+      'scrollEnd',
     ])
 
     this.scrollBehaviorX = scrollBehaviorX
@@ -73,7 +74,7 @@ export default class ScrollerActions {
       ({
         deltaX,
         deltaY,
-        e
+        e,
       }: {
         deltaX: number
         deltaY: number
@@ -105,6 +106,7 @@ export default class ScrollerActions {
   }
 
   private handleStart(e: TouchEvent) {
+    console.log(e.currentTarget)
     const timestamp = getNow()
     this.moved = false
 
@@ -148,6 +150,21 @@ export default class ScrollerActions {
     const newX = this.scrollBehaviorX.move(delta.deltaX)
     const newY = this.scrollBehaviorY.move(delta.deltaY)
 
+    const currentPosX = this.scrollBehaviorX.currentPos
+    const currentPosY = this.scrollBehaviorY.currentPos
+
+    // content element keeps unmoving, no need to dispatch scroll | scrollEnd events
+    if (newX === currentPosX && newY === currentPosY) {
+      const inBoundaryX = this.scrollBehaviorX.checkInBoundary().inBoundary
+      const inBoundaryY = this.scrollBehaviorY.checkInBoundary().inBoundary
+      if (inBoundaryX && inBoundaryY) {
+        this.actionsHandler.setInitiated()
+        this.scrollBehaviorX.setMovingDirection(Direction.Default)
+        this.scrollBehaviorY.setMovingDirection(Direction.Default)
+        return true
+      }
+    }
+
     if (!this.moved) {
       this.moved = true
       this.hooks.trigger(this.hooks.eventTypes.scrollStart)
@@ -155,7 +172,7 @@ export default class ScrollerActions {
 
     this.animater.translate({
       x: newX,
-      y: newY
+      y: newY,
     })
 
     this.dispatchScroll(timestamp)
@@ -220,7 +237,7 @@ export default class ScrollerActions {
   getCurrentPos(): TranslaterPoint {
     return {
       x: this.scrollBehaviorX.getCurrentPos(),
-      y: this.scrollBehaviorY.getCurrentPos()
+      y: this.scrollBehaviorY.getCurrentPos(),
     }
   }
 
